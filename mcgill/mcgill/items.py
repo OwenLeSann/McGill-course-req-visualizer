@@ -5,14 +5,27 @@
 
 import scrapy
 
+"""Class used to neatly store scraped data from the McgillSpider Crawler into fields.
+
+Fields
+str title
+str subject
+str level
+str course_code
+list[str] terms
+list[str] prerequisites
+list[str] prerequisite_urls
+list[str] corequisites
+list[str] corequisite_urls
+"""
+
 class McgillItem(scrapy.Item):
-    # define the fields for your item here like:
-    title = scrapy.Field(serializer=str)
-    subject = scrapy.Field(serializer=str)
-    level = scrapy.Field(serializer=str)
-    course_code = scrapy.Field(serializer=str)
-    terms = scrapy.Field(serializer=str)
-    prerequisites = scrapy.Field(serializer=str)
-    prerequisite_urls = scrapy.Field(serializer=str)
-    corequisites = scrapy.Field(serializer=str)
-    corequisite_urls = scrapy.Field(serializer=str)
+    title = scrapy.Field()
+    subject = scrapy.Field()
+    level = scrapy.Field()
+    course_code = scrapy.Field()
+    terms = scrapy.Field()
+    prerequisites = scrapy.Field()
+    prerequisite_urls = scrapy.Field()
+    corequisites = scrapy.Field()
+    corequisite_urls = scrapy.Field()
