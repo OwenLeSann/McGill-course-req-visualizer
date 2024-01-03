@@ -35,7 +35,7 @@ class McgillSpider(CrawlSpider):
             course_code = " ".join(title_parsed[:2])
             
             terms = response.xpath("normalize-space(//p[@class='catalog-terms']/text())").get()
-            terms = terms[7:]
+            terms = terms[7:].split(", ")
             
             prerequisites = response.xpath("//li/p[contains(text(), 'Prerequisite') or contains(text(), 'Pre-requisite')]/a/text()").extract()
             prerequisite_urls = response.xpath("//li/p[contains(text(), 'Prerequisite') or contains(text(), 'Pre-requisite')]/a/@href").extract()
@@ -62,40 +62,3 @@ class McgillSpider(CrawlSpider):
         except Exception as e:
             self.log(f"Error parsing item: {e} - URL: {response.url}")
         
-    ''' without loading items container
-    def parse_item(self, response):
-        title = response.xpath("normalize-space(//h1[@id='page-title']/text())").get()
-        if (title[1] == '"'): title = title[1:-1] # remove duplicate quotations
-        title_parsed = title.split()
-        subject = title_parsed[0]
-        level = title_parsed[1][0] + "00"
-        course_code = " ".join(title_parsed[:2])
-        
-        terms = response.xpath("normalize-space(//p[@class='catalog-terms']/text())").get()
-        terms = terms[7:]
-        
-        prerequisites = response.xpath("//li/p[contains(text(), 'Prerequisite') or contains(text(), 'Pre-requisite')]/a/text()").extract()
-        prerequisite_urls = response.xpath("//li/p[contains(text(), 'Prerequisite') or contains(text(), 'Pre-requisite')]/a/@href").extract()
-        for i in range(len(prerequisite_urls)):
-            prerequisite_urls[i] = response.urljoin(prerequisite_urls[i])
-            
-        corequisites = response.xpath("//li/p[contains(text(), 'Corequisite') or contains(text(), 'Co-requisite')]/a/text()").extract()
-        corequisite_urls = response.xpath("//li/p[contains(text(), 'Corequisite') or contains(text(), 'Co-requisite')]/a/@href").extract()
-        for i in range(len(corequisite_urls)):
-            corequisite_urls[i] = response.urljoin(corequisite_urls[i])
-        
-        yield {
-            # Format: 
-            # {'title': 'AGEC 231 Economic Systems of Agriculture (3 credits)'}
-            "title": title,
-            "subject": subject,
-            "level": level,
-            "course_code": course_code,
-            "terms": terms,
-            "prerequisites": prerequisites,
-            "prerequisite_urls": prerequisite_urls,
-            "corequisites": corequisites,
-            "corequisite_urls": corequisite_urls,
-            "user-agent": response.request.headers["User-Agent"] # Works
-        }
-    '''

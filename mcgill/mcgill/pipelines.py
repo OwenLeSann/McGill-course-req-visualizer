@@ -9,7 +9,11 @@ from itemadapter import ItemAdapter
 
 
 class SQLitePipeline:
-    collection_name = "mcgill_courses"
+    course_collection_name = "Courses"
+    prerequisites_collection_name = "Prerequisites"
+    corequisites_collection_name = "Corequisites"
+    terms_collection_name = "Terms"
+    course_terms_collection_name = "CourseTerms"
     
     def __init__(self, sqlite_db):
         self.sqlite_db = sqlite_db
@@ -23,16 +27,41 @@ class SQLitePipeline:
         self.c = self.connection.cursor()
         try:
             self.c.execute(f'''
-                CREATE TABLE IF NOT EXISTS {self.collection_name} (
+                CREATE TABLE IF NOT EXISTS {self.course_collection_name} (
+                    course_code TEXT PRIMARY KEY,
                     title TEXT,
                     subject TEXT,
-                    level TEXT,
+                    level TEXT)
+                ''')
+            self.c.execute(f'''
+                CREATE TABLE IF NOT EXISTS {self.terms_collection_name} (
+                    term TEXT PRIMARY KEY)
+                ''')
+            self.c.execute(f'''
+                CREATE TABLE IF NOT EXISTS {self.course_terms_collection_name} (
                     course_code TEXT,
-                    terms TEXT,
-                    prerequisites TEXT,
-                    prerequisite_urls TEXT,
-                    corequisites TEXT,
-                    corequisite_urls TEXT)
+                    term TEXT,
+                    PRIMARY KEY (course_code, term),
+                    FOREIGN KEY (course_code) REFERENCES {self.course_collection_name}(course_code),
+                    FOREIGN KEY (term) REFERENCES {self.terms_collection_name}(term))
+                ''')
+            self.c.execute(f'''
+                CREATE TABLE IF NOT EXISTS {self.prerequisites_collection_name} (
+                    course_code TEXT,
+                    prerequisite TEXT,
+                    prerequisite_url TEXT,
+                    PRIMARY KEY (course_code, prerequisite),
+                    FOREIGN KEY (course_code) REFERENCES {self.course_collection_name}(course_code),
+                    FOREIGN KEY (prerequisite) REFERENCES {self.course_collection_name}(course_code))
+                ''')
+            self.c.execute(f'''
+                CREATE TABLE IF NOT EXISTS {self.corequisites_collection_name} (
+                    course_code TEXT,
+                    corequisite TEXT,
+                    corequisite_url TEXT,
+                    PRIMARY KEY (course_code, corequisite),
+                    FOREIGN KEY (course_code) REFERENCES {self.course_collection_name}(course_code),
+                    FOREIGN KEY (corequisite) REFERENCES {self.course_collection_name}(course_code))
                 ''')
             self.connection.commit()
         except sqlite3.OperationalError as e:
@@ -40,35 +69,67 @@ class SQLitePipeline:
        
     def close_spider(self, spider):
         self.connection.close()
-     
+
     def process_item(self, item, spider):
         adapter = ItemAdapter(item)
 
-        # Concatenate lists into strings
-        terms = ", ".join(adapter.get("terms")) if isinstance(adapter.get("terms"), list) else str(adapter.get("terms", ""))
-        prerequisites = ", ".join(adapter.get("prerequisites")) if isinstance(adapter.get("prerequisites"), list) else str(adapter.get("prerequisites", ""))
-        prerequisite_urls = ", ".join(adapter.get("prerequisite_urls")) if isinstance(adapter.get("prerequisite_urls"), list) else str(adapter.get("prerequisite_urls", ""))
-        corequisites = ", ".join(adapter.get("corequisites")) if isinstance(adapter.get("corequisites"), list) else str(adapter.get("corequisites", ""))
-        corequisite_urls = ", ".join(adapter.get("corequisite_urls")) if isinstance(adapter.get("corequisite_urls"), list) else str(adapter.get("corequisite_urls", ""))
-        
         try:
+            course_code = adapter.get("course_code")[0]
+
+            # Insert into Courses table
             self.c.execute(f'''
-                INSERT INTO {self.collection_name} (
-                    title, subject, level, course_code, terms, prerequisites, prerequisite_urls, corequisites, corequisite_urls
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT OR IGNORE INTO {self.course_collection_name} (
+                    course_code, title, subject, level
+                ) VALUES (?, ?, ?, ?)
             ''', (
+                course_code,
                 adapter.get("title")[0],
                 adapter.get("subject")[0],
                 adapter.get("level")[0],
-                adapter.get("course_code")[0],
-                terms,
-                prerequisites,
-                prerequisite_urls,
-                corequisites,
-                corequisite_urls,
             ))
+
+            # Insert into Terms table
+            terms_data = [(term,) for term in adapter.get("terms")]
+            self.c.executemany(f'''
+                INSERT OR IGNORE INTO {self.terms_collection_name} (term) VALUES (?)
+            ''', terms_data)
+
+            # Insert into CourseTerms table
+            course_terms_data = [(course_code, term) for term in adapter.get("terms")]
+            self.c.executemany(f'''
+                INSERT OR IGNORE INTO {self.course_terms_collection_name} (course_code, term) VALUES (?, ?)
+            ''', course_terms_data)
+
+            # Insert into Prerequisites table
+            prerequisites = adapter.get("prerequisites")
+            if prerequisites is not None:
+                prerequisites_data = [
+                    (course_code, prerequisite, prerequisite_url)
+                    for prerequisite, prerequisite_url in zip(prerequisites, adapter.get("prerequisite_urls"))
+                ]
+                self.c.executemany(f'''
+                    INSERT OR IGNORE INTO {self.prerequisites_collection_name} (
+                        course_code, prerequisite, prerequisite_url
+                    ) VALUES (?, ?, ?)
+                ''', prerequisites_data)
+
+            # Insert into Corequisites table
+            corequisites = adapter.get("corequisites")
+            if corequisites is not None:
+                corequisites_data = [
+                    (course_code, corequisite, corequisite_url)
+                    for corequisite, corequisite_url in zip(corequisites, adapter.get("corequisite_urls"))
+                ]
+                self.c.executemany(f'''
+                    INSERT OR IGNORE INTO {self.corequisites_collection_name} (
+                        course_code, corequisite, corequisite_url
+                    ) VALUES (?, ?, ?)
+                ''', corequisites_data)
+
+            # Commit the transaction
             self.connection.commit()
-        except sqlite3.OperationalError as e:
+
+        except (sqlite3.IntegrityError, sqlite3.OperationalError) as e:
             spider.log(f"Error inserting item into database: {e}")
 
         return item
