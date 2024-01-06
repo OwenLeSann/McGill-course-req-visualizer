@@ -15,6 +15,18 @@ class CourseTree(object):
     def add_prerequisite(self, prerequisite):
         self.prerequisites.append(prerequisite)
         
+    def get_prerequisites(self):
+        prerequisites = []
+        for prerequisite in self.prerequisites:
+            prerequisites.append(str(prerequisite))
+        return prerequisites
+    
+    def get_corequisites(self):
+        corequisites = []
+        for corequisite in self.corequisites:
+            corequisites.append(str(corequisite))
+        return corequisites
+                    
     def __str__(self):
         return self.course_code
 
@@ -54,23 +66,25 @@ def build_course_tree(course_code, url=None):
     return current_course
 
 # preorder tree traversal
-# This needs to be fixed
 def generate_dict_to_plot(course, vertices_to_plot, edges_to_plot):
-    if not course.prerequisites:
+    if not course.prerequisites and not course.corequisites:
+        vertices_to_plot[str(course)] = []
         return
     
-    vertices_to_plot[str(course)] = course.prerequisites
-    
-    for corequisite in course.corequisites:
-        edges_to_plot[(str(course), str(corequisite))] = "corequisites"
+    edges_to_plot["".join(course.get_corequisites())] = ""
+    vertices_to_plot[str(course)] = course.get_prerequisites()
     
     for prerequisite in course.prerequisites:
         generate_dict_to_plot(prerequisite, vertices_to_plot, edges_to_plot)
 
-course_to_plot = CourseTree("COMP 551")
+course_to_plot = build_course_tree("COMP 551", url=None)
 vertices_to_plot = {}
 edges_to_plot = {}
 generate_dict_to_plot(course_to_plot, vertices_to_plot, edges_to_plot)
 
-graph = Graph(vertices_to_plot, directed=False, edges=edges_to_plot)
-graph.plot()
+#print(" ".join(course_to_plot.get_corequisites()))
+#print(f"vtp: {vertices_to_plot}, etp: {edges_to_plot}")
+
+graph = Graph(vertices_to_plot, directed=False, edges=None)
+# fill color baby blue, shape square, orientation top-to-bottom
+graph.plot(orientation="TB", shape="square", fill_color="#c3e7eb", output_path="./course_tree.png")
