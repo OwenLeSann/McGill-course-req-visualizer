@@ -35,21 +35,29 @@ def build_course_tree(course_code, url=None):
     connection = sqlite3.connect("mcgill_courses.db")
     c = connection.cursor()
 
-    c.execute(f"SELECT Prerequisites.prerequisite, Prerequisites.prerequisite_url \
-                FROM Prerequisites \
-                LEFT JOIN Courses ON Prerequisites.course_code = Courses.course_code \
-                WHERE Prerequisites.course_code = ?", (course_code,))
+    try:
+        c.execute(f'''
+                    SELECT Prerequisites.prerequisite, Prerequisites.prerequisite_url 
+                    FROM Prerequisites 
+                    LEFT JOIN Courses ON Prerequisites.course_code = Courses.course_code 
+                    WHERE Prerequisites.course_code = ?
+                    ''', (course_code,))
 
-    prerequisite_data = c.fetchall()
-    
-    c.execute(f"SELECT Corequisites.corequisite, Corequisites.corequisite_url \
-                FROM Corequisites \
-                LEFT JOIN Courses ON Corequisites.course_code = Courses.course_code \
-                WHERE Corequisites.course_code = ?", (course_code,))
-    
-    corequisite_data = c.fetchall()
+        prerequisite_data = c.fetchall()
+        
+        c.execute(f'''
+                    SELECT Corequisites.corequisite, Corequisites.corequisite_url 
+                    FROM Corequisites 
+                    LEFT JOIN Courses ON Corequisites.course_code = Courses.course_code 
+                    WHERE Corequisites.course_code = ?
+                    ''', (course_code,))
+        
+        corequisite_data = c.fetchall()
 
-    connection.close()
+    except sqlite3.Error as e:
+        print(f"Error querying {course_code} requisite data: {e}")
+    finally:
+        connection.close()
 
     current_course = CourseTree(course_code, url)
     
