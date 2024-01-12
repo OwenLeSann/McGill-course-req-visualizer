@@ -1,4 +1,3 @@
-import sys
 from course_tree import is_mcgill_course ,build_course_tree, generate_dict_to_plot
 from dsplot.graph import Graph
 
@@ -14,11 +13,7 @@ dsplot is a simple, open-source Pythonic interface for Graphviz, an open-source 
 The course-requisite-visualization graph below has fill color baby blue, shape square, orientation top-to-bottom.
 """
 def main():
-    args = sys.argv[1:]
-    if len(args) != 1:
-        exit("Error: Application only accepts one course as argument.")
-        
-    course = args[0]
+    course = input("Please enter the code of the course you would like to plot: ").upper()
     if not is_mcgill_course(course):
         exit("Error: The course entered is not a McGill course.")
     
