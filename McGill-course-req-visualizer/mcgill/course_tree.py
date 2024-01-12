@@ -44,6 +44,36 @@ class CourseTree(object):
     def __str__(self):
         return self.course_code
 
+"""(str, str) -> list[tup(str,)]
+Helper function used to encapsulate all queries related to the course_code 
+(which are all the queries necessary to graph the course requisite tree).
+"""
+def query_course(actions, course_code):
+    connection = sqlite3.connect("./mcgill_courses.db")
+    c = connection.cursor()
+    
+    try:
+        c.execute(actions, (course_code,))
+        data = c.fetchall()
+    
+    except sqlite3.Error as e:
+        exit(f"Error querying {course_code} data: {e}")
+    finally:
+        connection.close()
+        
+    return data
+    
+"""(str) -> list[tup(str,)]
+Checks if a given course_code is in the database and returns that course_code.
+"""
+def is_mcgill_course(course_code):
+    course_data = query_course(f'''
+                                SELECT course_code
+                                FROM Courses
+                                WHERE Courses.course_code = ?
+                                ''', course_code)
+    
+    return course_data
 
 """(str, str, list) -> CourseTree
 Recursively builds a CourseTree for a given course code with the prerequisites and corequisites queried from the database.
@@ -52,32 +82,19 @@ def build_course_tree(course_code, url=None, visited=None):
     if visited is None:
         visited = set()
     
-    connection = sqlite3.connect("./mcgill_courses.db")
-    c = connection.cursor()
-
-    try:
-        c.execute(f'''
-                    SELECT Prerequisites.prerequisite, Prerequisites.prerequisite_url 
-                    FROM Prerequisites 
-                    LEFT JOIN Courses ON Prerequisites.course_code = Courses.course_code 
-                    WHERE Prerequisites.course_code = ?
-                    ''', (course_code,))
-
-        prerequisite_data = c.fetchall()
-        
-        c.execute(f'''
-                    SELECT Corequisites.corequisite, Corequisites.corequisite_url 
-                    FROM Corequisites 
-                    LEFT JOIN Courses ON Corequisites.course_code = Courses.course_code 
-                    WHERE Corequisites.course_code = ?
-                    ''', (course_code,))
-        
-        corequisite_data = c.fetchall()
-
-    except sqlite3.Error as e:
-        print(f"Error querying {course_code} requisite data: {e}")
-    finally:
-        connection.close()
+    prerequisite_data = query_course(f'''
+                                    SELECT Prerequisites.prerequisite, Prerequisites.prerequisite_url 
+                                    FROM Prerequisites 
+                                    LEFT JOIN Courses ON Prerequisites.course_code = Courses.course_code 
+                                    WHERE Prerequisites.course_code = ?
+                                    ''', course_code)
+    
+    corequisite_data = query_course(f'''
+                                    SELECT Corequisites.corequisite, Corequisites.corequisite_url 
+                                    FROM Corequisites 
+                                    LEFT JOIN Courses ON Corequisites.course_code = Courses.course_code 
+                                    WHERE Corequisites.course_code = ?
+                                    ''', course_code)
 
     visited.add(course_code)
     current_course = CourseTree(course_code, url)

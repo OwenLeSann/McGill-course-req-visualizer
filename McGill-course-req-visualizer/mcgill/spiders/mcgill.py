@@ -4,6 +4,7 @@ from scrapy.spiders import CrawlSpider, Rule
 from scrapy.loader import ItemLoader
 from mcgill.items import McgillItem
 
+
 class McgillSpider(CrawlSpider):
     name = "mcgill"
     allowed_domains = ["www.mcgill.ca"]
