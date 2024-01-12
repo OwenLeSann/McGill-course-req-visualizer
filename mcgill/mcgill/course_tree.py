@@ -15,23 +15,23 @@ class CourseTree(object):
     def add_prerequisite(self, prerequisite):
         self.prerequisites.append(prerequisite)
         
+    def add_corequisite(self, corequisite):
+        self.corequisites.append(corequisite)
+        
     def get_prerequisites(self):
         prerequisites = []
         for prerequisite in self.prerequisites:
             prerequisites.append(str(prerequisite))
         return prerequisites
-    
-    def get_corequisites(self):
-        corequisites = []
-        for corequisite in self.corequisites:
-            corequisites.append(str(corequisite))
-        return corequisites
                     
     def __str__(self):
         return self.course_code
 
 
-def build_course_tree(course_code, url=None):
+def build_course_tree(course_code, url=None, visited=None):
+    if visited is None:
+        visited = set()
+    
     connection = sqlite3.connect("mcgill_courses.db")
     c = connection.cursor()
 
@@ -59,18 +59,20 @@ def build_course_tree(course_code, url=None):
     finally:
         connection.close()
 
+    visited.add(course_code)
     current_course = CourseTree(course_code, url)
     
-    if corequisite_data:
-        corequisites, corequisite_urls = zip(*corequisite_data)
-        current_course.corequisites = corequisites
-        current_course.corequisite_urls = corequisite_urls
-
-    if prerequisite_data:
-        for prerequisite, prerequisite_url in prerequisite_data:
-            prerequisite_node = build_course_tree(prerequisite, prerequisite_url)
+    for prerequisite, prerequisite_url in prerequisite_data:
+        if prerequisite not in visited:
+            prerequisite_node = build_course_tree(prerequisite, prerequisite_url, visited)
             current_course.add_prerequisite(prerequisite_node)
+                
+    for corequisite, corequisite_url in corequisite_data:
+        if corequisite not in visited:
+            corequisite_node = build_course_tree(corequisite, corequisite_url, visited)
+            current_course.add_corequisite(corequisite_node)
 
+    visited.remove(course_code)
     return current_course
 
 # preorder tree traversal
@@ -78,21 +80,23 @@ def generate_dict_to_plot(course, vertices_to_plot, edges_to_plot):
     if not course.prerequisites and not course.corequisites:
         vertices_to_plot[str(course)] = []
         return
-    
-    edges_to_plot["".join(course.get_corequisites())] = ""
+      
     vertices_to_plot[str(course)] = course.get_prerequisites()
     
     for prerequisite in course.prerequisites:
         generate_dict_to_plot(prerequisite, vertices_to_plot, edges_to_plot)
+        
+    for corequisite in course.corequisites:
+        generate_dict_to_plot(corequisite, vertices_to_plot, edges_to_plot)
+        vertices_to_plot[str(course)].append(str(corequisite))
+        edges_to_plot[str(course) + str(corequisite)] = "corequisites"
 
-course_to_plot = build_course_tree("COMP 551", url=None)
+
+course_to_plot = build_course_tree("COMP 421", url=None)
 vertices_to_plot = {}
 edges_to_plot = {}
 generate_dict_to_plot(course_to_plot, vertices_to_plot, edges_to_plot)
 
-#print(" ".join(course_to_plot.get_corequisites()))
-#print(f"vtp: {vertices_to_plot}, etp: {edges_to_plot}")
-
-graph = Graph(vertices_to_plot, directed=False, edges=None)
+graph = Graph(vertices_to_plot, directed=False, edges=edges_to_plot)
 # fill color baby blue, shape square, orientation top-to-bottom
 graph.plot(orientation="TB", shape="square", fill_color="#c3e7eb", output_path="./course_tree.png")
