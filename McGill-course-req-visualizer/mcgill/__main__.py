@@ -23,7 +23,7 @@ def main():
     generate_dict_to_plot(course_tree, vertices_to_plot, edges_to_plot)
 
     graph = Graph(vertices_to_plot, directed=False, edges=edges_to_plot)
-    graph.plot(orientation="TB", shape="square", fill_color="#c3e7eb", output_path="../course_tree.png")
+    graph.plot(orientation="TB", shape="square", fill_color="#c3e7eb", output_path=f"../{course}.png")
     
 if __name__ == "__main__":
     main()
